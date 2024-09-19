@@ -1,0 +1,5 @@
+Estructuras de datos básicas
+Los datos pueden almacenarse y accederse de muchas maneras. Ya conoces algunas estructuras de datos comunes en JavaScript: los arreglos y los objetos.
+
+En este curso de estructuras de datos básicas, aprenderás más acerca de las diferencias entre arreglos y objetos, y cuál usar en diferentes situaciones. 
+También aprenderás como usar métodos útiles de JavaScript como splice() y Object.keys() para acceder y manipular datos.

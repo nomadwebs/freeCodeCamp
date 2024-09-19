@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Calculadora de interés compuesto que te permite calcular y visualizar el crecimiento de tu capital con aportaciones periódicas. Incluye un resumen anual y gráfico de evolución.">
+    <meta name="keywords" content="calculadora, interés compuesto, finanzas, inversiones, crecimiento de capital, aportaciones periódicas, finanzas personales">
+    <title>Calculadora de Interés Compuesto</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1, h2 {
+            color: #0056b3;
+            text-align: center;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        input, select, button {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            font-size: 16px;
+        }
+
+        button {
+            background-color: #0056b3;
+            color: #fff;
+            cursor: pointer;
+            border: none;
+        }
+
+        button:hover {
+            background-color: #003f7f;
+        }
+
+        #result {
+            margin-top: 20px;
+        }
+
+        #finalAmount, #finalContribution {
+            font-weight: bold;
+            margin: 10px 0;
+        }
+
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+        }
+
+        .table-container, .chart-container {
+            width: 100%;
+            margin-top: 20px;
+        }
+
+        .chart-container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        @media(min-width: 768px) {
+            .table-container {
+                width: 60%;
+            }
+
+            .chart-container {
+                width: 35%;
+            }
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            overflow-x: auto;
+            display: block;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: center;
+            border: 1px solid #ddd;
+        }
+
+        th {
+            background-color: #0056b3;
+            color: white;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+
+        tr:hover {
+            background-color: #ddd;
+        }
+
+        #clearButton {
+            background-color: #ff4c4c;
+            margin-top: 10px;
+        }
+
+        #clearButton:hover {
+            background-color: #cc0000;
+        }
+    </style>
+</head>
+<body>
+    <h1>Calculadora de Interés Compuesto</h1>
+
+    <label for="initialAmount">Entrada Inicial (€):</label>
+    <input type="number" id="initialAmount" placeholder="Ej: 1000" oninput="calculateCompoundInterest()">
+
+    <label for="contributionType">Tipo de Aportación:</label>
+    <select id="contributionType" onchange="calculateCompoundInterest()">
+        <option value="mensual">Mensual</option>
+        <option value="anual">Anual</option>
+    </select>
+
+    <label for="contributionAmount">Importe de la Aportación (€):</label>
+    <input type="number" id="contributionAmount" placeholder="Ej: 100" oninput="calculateCompoundInterest()">
+
+    <label for="years">Plazo en Años:</label>
+    <input type="number" id="years" placeholder="Ej: 10" oninput="calculateCompoundInterest()">
+
+    <label for="rate">Tasa de Interés Anual (%):</label>
+    <input type="number" id="rate" step="0.01" placeholder="Ej: 5" oninput="calculateCompoundInterest()">
+
+    <button id="clearButton" onclick="clearForm()">Limpiar</button>
+
+    <div id="result">
+        <h2>Resultado:</h2>
+        <p id="finalAmount"></p>
+        <p id="finalContribution"></p>
+    </div>
+
+    <div class="container">
+        <div class="table-container">
+            <h2>Tabla Resumen:</h2>
+            <table id="summaryTable">
+                <thead>
+                    <tr>
+                        <th>Año</th>
+                        <th>Capital Inicial</th>
+                        <th>Aportaciones</th>
+                        <th>Capital Final (con Interés Compuesto)</th>
+                        <th>Capital Final (sin Interés Compuesto)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="chart-container">
+            <h2>Gráfico del Crecimiento del Capital:</h2>
+            <canvas id="capitalChart"></canvas>
+        </div>
+    </div>
+
+    <script>
+        let chart; // Variable para almacenar el gráfico
+
+        function calculateCompoundInterest() {
+            // Obtener valores de los campos de entrada
+            const initialAmount = parseFloat(document.getElementById('initialAmount').value);
+            const contributionType = document.getElementById('contributionType').value;
+            const contributionAmount = parseFloat(document.getElementById('contributionAmount').value);
+            const years = parseInt(document.getElementById('years').value);
+            const rate = parseFloat(document.getElementById('rate').value) / 100;
+
+            if (isNaN(initialAmount) || isNaN(contributionAmount) || isNaN(years) || isNaN(rate)) {
+                return; // No calcules si faltan valores
+            }
+
+            let finalAmount = initialAmount;
+            let finalContributionAmount = initialAmount;
+            const summaryTableBody = document.getElementById('summaryTable').querySelector('tbody');
+            summaryTableBody.innerHTML = ''; // Limpiar la tabla de resultados previos
+
+            let totalContributions = initialAmount; // Suma de las aportaciones sin interés compuesto
+
+            // Arrays para almacenar los datos para el gráfico
+            const labels = [];
+            const dataWithInterest = [];
+            const dataWithoutInterest = [];
+
+            for (let i = 1; i <= years; i++) {
+                const initialCapitalForYear = finalAmount;
+                let yearlyContribution = 0;
+
+                if (contributionType === 'mensual') {
+                    yearlyContribution = contributionAmount * 12;
+                    for (let j = 0; j < 12; j++) {
+                        finalAmount += contributionAmount;
+                        finalAmount *= (1 + rate / 12);
+                    }
+                    finalContributionAmount += yearlyContribution;
+                } else if (contributionType === 'anual') {
+                    yearlyContribution = contributionAmount;
+                    finalAmount += contributionAmount;
+                    finalAmount *= (1 + rate);
+                    finalContributionAmount += yearlyContribution;
+                }
+
+                totalContributions += yearlyContribution;
+
+                // Guardar los valores en los arrays para el gráfico
+                labels.push(`Año ${i}`);
+                dataWithInterest.push(finalAmount);
+                dataWithoutInterest.push(totalContributions);
+
+                // Crear una fila en la tabla con el resumen del año
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${i}</td>
+                    <td>${initialCapitalForYear.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</td>
+                    <td>${yearlyContribution.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</td>
+                    <td>${finalAmount.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</td>
+                    <td>${totalContributions.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</td>
+                `;
+                summaryTableBody.appendChild(row);
+            }
+
+            // Mostrar el importe final resultante
+            document.getElementById('finalAmount').innerText = `Importe final con interés compuesto después de ${years} años: ${finalAmount.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
+            document.getElementById('finalContribution').innerText = `Importe total sin interés compuesto después de ${years} años: ${totalContributions.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
+
+            // Actualizar el gráfico
+            const ctx = document.getElementById('capitalChart').getContext('2d');
+            if (chart) {
+                chart.destroy(); // Destruir el gráfico anterior si existe
+            }
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Capital con Interés Compuesto',
+                            data: dataWithInterest,
+                            borderColor: 'rgba(75, 192, 192, 1)',
+                            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                            borderWidth: 2,
+                            fill: true,
+                        },
+                        {
+                            label: 'Capital sin Interés Compuesto',
+                            data: dataWithoutInterest,
+                            borderColor: 'rgba(255, 99, 132, 1)',
+                            backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                            borderWidth: 2,
+                            fill: true,
+                        }
+                    ]
+                },
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    label += context.raw.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+                                    return label;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function clearForm() {
+            // Limpiar todos los campos del formulario
+            document.getElementById('initialAmount').value = '';
+            document.getElementById('contributionType').value = 'mensual';
+            document.getElementById('contributionAmount').value = '';
+            document.getElementById('years').value = '';
+            document.getElementById('rate').value = '';
+
+            // Limpiar resultados y tabla
+            document.getElementById('finalAmount').innerText = '';
+            document.getElementById('finalContribution').innerText = '';
+            document.getElementById('summaryTable').querySelector('tbody').innerHTML = '';
+
+            // Limpiar el gráfico
+            if (chart) {
+                chart.destroy();
+            }
+        }
+    </script>
+</body>
+</html>
